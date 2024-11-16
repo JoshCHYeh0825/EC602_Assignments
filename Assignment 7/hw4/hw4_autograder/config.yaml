@@ -1,0 +1,21 @@
+# config.yml
+
+assignment: wedding
+name: HW4 - Wedding Assignment
+tests_dir: tests
+notebook: tests/hw4_wedding_tests.ipynb
+points_possible: 100
+
+show_stdout: true
+show_stderr: true
+generate_grade_report: true
+grade_report_filename: grade_report.html
+
+point_values:
+  - Shuffle_Main: 35
+  - Shuffle_Single: 5
+  - Shuffle_Double: 5
+  - Barriers_Main: 35
+  - No_Barriers: 5
+  - Multiple_Barriers: 5
+  - Formatting: 10
