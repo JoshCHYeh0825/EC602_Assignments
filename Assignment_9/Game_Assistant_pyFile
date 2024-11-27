@@ -1,0 +1,286 @@
+# Copyright year Josh Yeh jy0825@bu.edu
+# Imports
+
+
+import pyautogui
+import random
+import cv2
+import numpy as np
+import tkinter as tk
+
+TILE_COLORS = {
+    'empty': (194, 179, 169),
+    2: (252, 239, 230),
+    4: (242, 232, 203),
+    8: (245, 182, 130),
+    16: (242, 148, 70),
+    32: (255, 119, 92),
+    64: (230, 76, 46),
+    128: (237, 226, 145),
+    256: (252, 225, 48),
+    512: (255, 219, 74),
+    1024: (237, 200, 80),
+    2048: (250, 215, 77)
+}
+
+
+# Screen Capture Function
+
+
+def capture_screen(region=None):
+    screenshot = pyautogui.screenshot(region=region)
+    screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2RGB)
+    return screenshot
+
+
+# Locate game window/grid
+
+
+def locate_game(image):
+
+    grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    edge_detect = cv2.Canny(grayscale, 50, 150)
+
+    contours, _ = cv2.findContours(edge_detect, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+
+        x, y, w, h = cv2.boundingRect(contour)
+
+        if 300 < w < 600 and 300 < h < 600:
+            return (x, y, w, h)
+
+    return None
+
+# Tile recognition approximation
+
+
+def closest_tile_value(center_color):
+    min_distance = float('inf')
+    closest_value = 0
+    for value, tile_color in TILE_COLORS.items():
+
+        distance = sum((c1 - c2) ** 2 for c1, c2 in zip(center_color, tile_color)) ** 0.5
+        if distance < min_distance:
+            min_distance = distance
+            closest_value = value
+    return closest_value
+
+# Tile Recognition
+
+
+def tile_recognition(grid_image, grid_size=4):
+
+    tile_val = [[0] * grid_size for _ in range(grid_size)]
+    cell_width = grid_image.shape[1] // grid_size
+    cell_height = grid_image.shape[0] // grid_size
+
+    for row in range(grid_size):
+        for col in range(grid_size):
+
+            x = int(col * cell_width + cell_width / 2)
+            y = int(row * cell_height + cell_height / 2)
+            center_color = grid_image[y, x] 
+
+            center_color = tuple(center_color[::-1])
+
+            tile_val[row][col] = closest_tile_value(center_color)
+
+    return tile_val
+
+
+# Simulating keyboard
+
+
+def simulate_keypress(move):
+
+    key_map = {
+        "Up": "up",
+        "Down": "down",
+        "Left": "left",
+        "Right": "right"
+    }
+    pyautogui.press(key_map[move])
+
+
+# Tile attributes definitions
+
+def stack(self, matrix):
+    new_matrix = [[0] * 4 for _ in range(4)]
+    for i in range(4):
+        fill_position = 0
+        for j in range(4):
+            if self.matrix[i][j] != 0:
+                new_matrix[i][fill_position] = matrix[i][j]
+                fill_position += 1
+    return new_matrix
+
+
+def combine(self, matrix):
+    for i in range(4):
+        for j in range(3):
+            if matrix[i][j] != 0 and matrix[i][j] == matrix[i][j + 1]:
+                matrix[i][j] *= 2
+                matrix[i][j + 1] = 0
+                self.score += matrix[i][j]
+
+
+def reverse(self, matrix):
+    for i in range(4):
+        matrix[i].reverse()
+
+
+def transpose(self, matrix):
+    new_matrix = [list(row) for row in zip(*matrix)]
+    for i in range(4):
+        matrix[i] = new_matrix[i]
+
+# Calculates score
+
+
+def calculate_score(self, matrix):
+    return sum(sum(row) for row in matrix)
+
+
+# Simulating Move
+
+def simulate_move(self, direction, matrix):
+
+    simulated_matrix = [row[:] for row in matrix]
+
+    if direction == "Up":
+        self.transpose(simulated_matrix)
+        simulated_matrix = self.stack(simulated_matrix)
+        self.combine(simulated_matrix)
+        simulated_matrix = self.stack(simulated_matrix)
+        self.transpose(simulated_matrix)
+
+    elif direction == "Down":
+        self.transpose(simulated_matrix)
+        self.reverse(simulated_matrix)
+        simulated_matrix = self.stack(simulated_matrix)
+        self.combine(simulated_matrix)
+        simulated_matrix = self.stack(simulated_matrix)
+        self.reverse(simulated_matrix)
+        self.transpose(simulated_matrix)
+
+    elif direction == "Left":
+        simulated_matrix = self.stack(simulated_matrix)
+        self.combine(simulated_matrix)
+        simulated_matrix = self.stack(simulated_matrix)
+
+    elif direction == "Right":
+        self.reverse(simulated_matrix)
+        simulated_matrix = self.stack(simulated_matrix)
+        self.combine(simulated_matrix)
+        simulated_matrix = self.stack(simulated_matrix)
+        self.reverse(simulated_matrix)
+
+    return simulated_matrix
+
+
+# Evaluates move
+
+
+def evaluate_move(self, matrix):
+    empty_cells = sum(row.count(0) for row in matrix)
+    potential_score = sum(sum(matrix[i][j] for j in range(4)) for i in range(4))
+
+    return empty_cells + potential_score  # Weighted evaluation
+
+# Random Game Sim
+
+
+def random_game_sim(self, matrix):
+    game_state_copy = [row[:] for row in matrix]
+    score = 0
+
+    while True:
+        valid_moves = ["Up", "Down", "Left", "Right"]
+        random.shuffle(valid_moves)
+
+        move_made = False
+        for move in valid_moves:
+            next_state = self.simulate_move(move, game_state_copy)
+            if next_state != game_state_copy:
+                game_state_copy = next_state
+                score += self.calculate_score(game_state_copy)
+                move_made = True
+                break
+
+        if not move_made:
+            break
+
+    return score
+
+
+class Game_Assistant:
+
+    def __init__(self, root):
+
+        self.root = root
+        self.root.title("2048 Assistant")
+        self.root.geometry("300x200")
+
+        # Game matrix
+        self.matrix = [[0] * 4 for _ in range(4)]
+
+        # Create GUI elements
+        self.hint_label = tk.Label(self.root, text="Suggested Move: None", font=("Helvetica", 14))
+        self.hint_label.pack(pady=20)
+
+        self.hint_button = tk.Button(self.root, text="Get Hint", command=self.monte_carlo_hint)
+        self.hint_button.pack(pady=10)
+
+        self.update_matrix_button = tk.Button(self.root, text="Update Grid", command=self.update_matrix_from_screen)
+        self.update_matrix_button.pack(pady=10)
+
+    # Captures the game screen and updates the matrix
+
+    def update_matrix_from_screen(self):
+
+        screen = capture_screen()
+        game_region = locate_game(screen)
+        if game_region:
+            x, y, w, h = game_region
+            game_grid = screen[y:y+h, x:x+w]
+            self.matrix = tile_recognition(game_grid)
+            print("Grid updated:")
+            for row in self.matrix:
+                print(row)
+        else:
+            print("Game not found!")
+
+    # Monte Carlo Simulation
+
+    def monte_carlo_simulation(self, num_simulations=100):
+        moves = ["Up", "Down", "Left", "Right"]
+        move_scores = {move: 0 for move in moves}
+
+        for move in moves:
+            simulated_game = self.simulate_move(move, self.matrix)
+            if simulated_game == self.matrix:
+                continue
+
+            scores = [
+                self.random_game_sim(simulated_game)
+                for _ in range(num_simulations)
+            ]
+            move_scores[move] = sum(scores) / len(scores)
+
+        return max(move_scores, key=move_scores.get)
+
+    # Hint using Monte Carlo
+
+    def monte_carlo_hint(self):
+        best_move = self.monte_carlo_simulation(num_simulations=100)
+        self.hint_label.config(text=f"Suggested Move {best_move}")
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = Game_Assistant(root)
+    root.mainloop()
+
+
